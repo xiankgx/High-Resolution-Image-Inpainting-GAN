@@ -1,14 +1,17 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torch.nn import Parameter
+from torch.nn import functional as F
 
-#-----------------------------------------------
+
+# -----------------------------------------------
 #                Normal ConvBlock
-#-----------------------------------------------
+# -----------------------------------------------
+
 class Conv2dLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, pad_type = 'replicate', activation = 'none', norm = 'none', sn = False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, pad_type='replicate', activation='none', norm='none', sn=False):
         super(Conv2dLayer, self).__init__()
+        
         # Initialize the padding scheme
         if pad_type == 'reflect':
             self.pad = nn.ReflectionPad2d(padding)
@@ -18,7 +21,7 @@ class Conv2dLayer(nn.Module):
             self.pad = nn.ZeroPad2d(padding)
         else:
             assert 0, "Unsupported padding type: {}".format(pad_type)
-        
+
         # Initialize the normalization type
         if norm == 'bn':
             self.norm = nn.BatchNorm2d(out_channels)
@@ -28,18 +31,18 @@ class Conv2dLayer(nn.Module):
             self.norm = None
         else:
             assert 0, "Unsupported normalization: {}".format(norm)
-        
+
         # Initialize the activation funtion
         if activation == 'relu':
-            self.activation = nn.ReLU(inplace = True)
+            self.activation = nn.ReLU(inplace=True)
         elif activation == 'elu':
-            self.activation = nn.ELU(alpha=1.0,inplace=True)
+            self.activation = nn.ELU(alpha=1.0, inplace=True)
         elif activation == 'lrelu':
-            self.activation = nn.LeakyReLU(0.2, inplace = True)
+            self.activation = nn.LeakyReLU(0.2, inplace=True)
         elif activation == 'prelu':
             self.activation = nn.PReLU()
         elif activation == 'selu':
-            self.activation = nn.SELU(inplace = True)
+            self.activation = nn.SELU(inplace=True)
         elif activation == 'tanh':
             self.activation = nn.Tanh()
         elif activation == 'sigmoid':
@@ -51,10 +54,12 @@ class Conv2dLayer(nn.Module):
 
         # Initialize the convolution layers
         if sn:
-            self.conv2d = SpectralNorm(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding = 0, dilation = dilation))
+            self.conv2d = SpectralNorm(nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation))
         else:
-            self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding = 0, dilation = dilation)
-    
+            self.conv2d = nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
+
     def forward(self, x):
         x = self.pad(x)
         x = self.conv2d(x)
@@ -64,15 +69,17 @@ class Conv2dLayer(nn.Module):
             x = self.activation(x)
         return x
 
+
 class TransposeConv2dLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, pad_type = 'zero', activation = 'lrelu', norm = 'none', sn = False, scale_factor = 2):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, pad_type='zero', activation='lrelu', norm='none', sn=False, scale_factor=2):
         super(TransposeConv2dLayer, self).__init__()
         # Initialize the conv scheme
         self.scale_factor = scale_factor
-        self.conv2d = Conv2dLayer(in_channels, out_channels, kernel_size, stride, padding, dilation, pad_type, activation, norm, sn)
-    
+        self.conv2d = Conv2dLayer(in_channels, out_channels, kernel_size,
+                                  stride, padding, dilation, pad_type, activation, norm, sn)
+
     def forward(self, x):
-        x = F.interpolate(x, scale_factor = self.scale_factor, mode = 'nearest')
+        x = F.interpolate(x, scale_factor=self.scale_factor, mode='nearest')
         x = self.conv2d(x)
         return x
 
@@ -103,6 +110,7 @@ class depth_separable_conv(nn.Module):
         out = self.point_conv(out)
         return out
 
+
 class sc_conv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel_size, stride, padding, dilation):
         super(sc_conv, self).__init__()
@@ -121,12 +129,14 @@ class sc_conv(nn.Module):
         return out
 
 
-#-----------------------------------------------
+# -----------------------------------------------
 #                Gated ConvBlock
-#-----------------------------------------------
+# -----------------------------------------------
+
 class GatedConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, pad_type = 'replicate', activation = 'elu', norm = 'none', sc=False, sn=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, pad_type='replicate', activation='elu', norm='none', sc=False, sn=False):
         super(GatedConv2d, self).__init__()
+
         # Initialize the padding scheme
         if pad_type == 'reflect':
             self.pad = nn.ReflectionPad2d(padding)
@@ -136,7 +146,7 @@ class GatedConv2d(nn.Module):
             self.pad = nn.ZeroPad2d(padding)
         else:
             assert 0, "Unsupported padding type: {}".format(pad_type)
-        
+
         # Initialize the normalization type
         if norm == 'bn':
             self.norm = nn.BatchNorm2d(out_channels)
@@ -146,18 +156,18 @@ class GatedConv2d(nn.Module):
             self.norm = None
         else:
             assert 0, "Unsupported normalization: {}".format(norm)
-        
+
         # Initialize the activation funtion
         if activation == 'relu':
-            self.activation = nn.ReLU(inplace = True)
+            self.activation = nn.ReLU(inplace=True)
         elif activation == 'elu':
             self.activation = nn.ELU(alpha=1.0, inplace=True)
         elif activation == 'lrelu':
-            self.activation = nn.LeakyReLU(0.2, inplace = True)
+            self.activation = nn.LeakyReLU(0.2, inplace=True)
         elif activation == 'prelu':
             self.activation = nn.PReLU()
         elif activation == 'selu':
-            self.activation = nn.SELU(inplace = True)
+            self.activation = nn.SELU(inplace=True)
         elif activation == 'tanh':
             self.activation = nn.Tanh()
         elif activation == 'sigmoid':
@@ -169,12 +179,16 @@ class GatedConv2d(nn.Module):
 
         # Initialize the convolution layers
         if sc:
-            self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding = 0, dilation = dilation)
-            self.mask_conv2d = sc_conv(in_channels, out_channels, kernel_size, stride, padding = 0, dilation = dilation)
+            self.conv2d = nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
+            self.mask_conv2d = sc_conv(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
         else:
-            self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding = 0, dilation = dilation)
+            self.conv2d = nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
             #self.mask_conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
-            self.mask_conv2d = depth_separable_conv(in_channels, out_channels, kernel_size, stride, padding = 0,dilation=dilation)
+            self.mask_conv2d = depth_separable_conv(
+                in_channels, out_channels, kernel_size, stride, padding=0, dilation=dilation)
 
         self.sigmoid = torch.nn.Sigmoid()
         # self.shortcut = nn.Sequential()
@@ -184,7 +198,7 @@ class GatedConv2d(nn.Module):
         #                   kernel_size=1, stride=stride, bias=False),
         #         self.norm
         #     )
-    
+
     def forward(self, x_in):
         x = self.pad(x_in)
         conv = self.conv2d(x)
@@ -198,24 +212,26 @@ class GatedConv2d(nn.Module):
 
         #x += self.shortcut(x_in)
 
-
         return x
 
+
 class TransposeGatedConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, pad_type = 'zero', activation = 'lrelu', norm = 'none', sc = False, scale_factor = 2):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, pad_type='zero', activation='lrelu', norm='none', sc=False, scale_factor=2):
         super(TransposeGatedConv2d, self).__init__()
         # Initialize the conv scheme
         self.scale_factor = scale_factor
-        self.gated_conv2d = GatedConv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, pad_type, activation, norm, sc)
-    
+        self.gated_conv2d = GatedConv2d(
+            in_channels, out_channels, kernel_size, stride, padding, dilation, pad_type, activation, norm, sc)
+
     def forward(self, x):
-        x = F.interpolate(x, scale_factor = self.scale_factor, mode = 'nearest')
+        x = F.interpolate(x, scale_factor=self.scale_factor, mode='nearest')
         x = self.gated_conv2d(x)
         return x
 
 # ----------------------------------------
 #               Layer Norm
 # ----------------------------------------
+#
 # class LayerNorm(nn.Module):
 #     def __init__(self, num_features, eps = 1e-8, affine = True):
 #         super(LayerNorm, self).__init__()
@@ -244,11 +260,14 @@ class TransposeGatedConv2d(nn.Module):
 #             x = x * self.gamma.view(*shape) + self.beta.view(*shape)
 #         return x
 #
-#-----------------------------------------------
+# -----------------------------------------------
 #                  SpectralNorm
-#-----------------------------------------------
-def l2normalize(v, eps = 1e-12):
+# -----------------------------------------------
+
+
+def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)
+
 
 class SpectralNorm(nn.Module):
     def __init__(self, module, name='weight', power_iterations=1):
@@ -266,8 +285,9 @@ class SpectralNorm(nn.Module):
 
         height = w.data.shape[0]
         for _ in range(self.power_iterations):
-            v.data = l2normalize(torch.mv(torch.t(w.view(height,-1).data), u.data))
-            u.data = l2normalize(torch.mv(w.view(height,-1).data, v.data))
+            v.data = l2normalize(
+                torch.mv(torch.t(w.view(height, -1).data), u.data))
+            u.data = l2normalize(torch.mv(w.view(height, -1).data, v.data))
 
         # sigma = torch.dot(u.data, torch.mv(w.view(height,-1).data, v.data))
         sigma = u.dot(w.view(height, -1).mv(v))
